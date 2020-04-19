@@ -6,18 +6,20 @@ import matplotlib
 import matplotlib.patches as patches
 import tensorflow as tf
 import PIL
+from PIL import Image
 import random
 from sklearn.preprocessing import OneHotEncoder
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import imageio
+#import imageio
 from skimage import transform,io
 from distutils.dir_util import copy_tree
 import shutil
 import os
-
+import sys
 #--------------0- Init-----------------------------------------------------
 #Feel free to add more images of logos in ./data/photodata
 #Deleting augmentated images from last time
+print ('Argument List:', str(sys.argv[-1]))
 shutil.rmtree("./data/augdata/images")
 #Copy all images we have from the ressource file ./data/photodata
 shutil.copytree("./data/photodata/", "./data/augdata/images/")
@@ -46,8 +48,8 @@ for cat in categories:
     pathdata=os.path.join(folder,cat)
     class_num=categories.index(cat)
     for img in os.listdir(pathdata):        
-        imgarray = imageio.imread(os.path.join(pathdata,img), pilmode='RGB')
-        imgresized = transform.resize(imgarray, (size,size), mode='symmetric')
+        imgarray=Image.open(os.path.join(pathdata,img)).convert('RGB')
+        imgresized = imgarray.resize((size,size)) 
         #plt.imshow(imgresized)
         #plt.show()
         data.append([np.array(imgresized),class_num])
@@ -72,17 +74,16 @@ categories=["MIT","AM","X","STAN","CS","HARV"]
 #if you want augmented dataset uncomment next line
 folder="./data/augdata/images"
 #folder=".\photodata"
-size=150
 data=[]
 for cat in categories:
     pathdata=os.path.join(folder,cat)
     class_num=categories.index(cat)
     for img in os.listdir(pathdata):
-        imgarray = imageio.imread(os.path.join(pathdata,img), pilmode='RGB')
-        imgresized = transform.resize(imgarray, (size,size), mode='symmetric')
+        imgarray=Image.open(os.path.join(pathdata,img)).convert('RGB')
+        imgresized = imgarray.resize((size,size)) 
         #plt.imshow(imgresized)
         #plt.show()
-        data.append([imgresized,class_num])
+        data.append([np.array(imgresized),class_num])
 import random
 random.shuffle(data)
 X=[]
@@ -102,7 +103,7 @@ print("The dataset size is")
 print(X.shape,y.shape)
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.3, random_state=42,shuffle=True)
+    X, y, test_size=0.3, random_state=42)
 print("The trainingset size is")
 print(X_train.shape,y_train.shape)
 print("The testingset size is")
@@ -111,22 +112,24 @@ print(X_test.shape,y_test.shape)
 
 #------------------------ 3- Let's Build THE CNN -----------------------
 droprate=0.2
+#Architecture
+c1,c2,c3,c4,d1,d2,d3=32,32,64,64,128,256,256
 model = tf.keras.models.Sequential([
-    tf.keras.layers.Conv2D(32,(3,3),activation="relu",input_shape=(size,size,3)),
+    tf.keras.layers.Conv2D(c1,(3,3),activation="relu",input_shape=(size,size,3)),
     tf.keras.layers.MaxPooling2D(2,2),
-    tf.keras.layers.Conv2D(32,(3,3),activation="relu"),
+    tf.keras.layers.Conv2D(c2,(3,3),activation="relu"),
     tf.keras.layers.MaxPooling2D(2,2),
-    tf.keras.layers.Conv2D(64,(3,3),activation="relu"),
+    tf.keras.layers.Conv2D(c3,(3,3),activation="relu"),
     tf.keras.layers.MaxPooling2D(2,2),
-    tf.keras.layers.Conv2D(64,(3,3),activation="relu"),
+    tf.keras.layers.Conv2D(c4,(3,3),activation="relu"),
     tf.keras.layers.MaxPooling2D(2,2),
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dropout(droprate),
-    tf.keras.layers.Dense(128,activation="relu"),
+    tf.keras.layers.Dense(d1,activation="relu"),
     tf.keras.layers.Dropout(droprate),
-    tf.keras.layers.Dense(256,activation="relu"),
+    tf.keras.layers.Dense(d2,activation="relu"),
     tf.keras.layers.Dropout(droprate),
-    tf.keras.layers.Dense(256,activation="relu"),
+    tf.keras.layers.Dense(d3,activation="relu"),
     tf.keras.layers.Dense(6,activation="softmax")
 ])
 #opt=SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
@@ -136,19 +139,21 @@ model.compile(optimizer="adam",
 
 #------------------------ 4- Training-----------------------
 from datetime import datetime
-logdir = "logs\scalars\ " + datetime.now().strftime("%Y%m%d-%H%M%S")
+#datetime.now().strftime("%Y%m%d-%H%M%S")
+ext="_"+str(size)+"_"+str(aug)+"_"+str(droprate)+"_"+str(c1)+"x"+str(c2)+"x"+str(c3)+"x"+str(c4)+"x"+str(d1)+"x"+str(d2)+"x"+str(d3)
+logdir = "./logs/scalars/model"+ext
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir)
 history = model.fit(
     X_train, # input
     y_train, # output
     verbose=1, # Suppress chatty output; use Tensorboard instead
-    epochs=100,
+    epochs=50,
     validation_data=(X_test,y_test),
     callbacks=[tensorboard_callback],
 )
 
 #------------------------ 6- Save/Load Model-----------------------
-model.save('./data/my_modelx.h5')  # creates a HDF5 file 'my_model.h5'
+model.save('./data/models/model'+ext+'.h5')  # creates a HDF5 file 'my_model.h5'
 print("model saved")
 #model = tf.keras.models.load_model('./data/my_modelx.h5')
 #print("model loaded")
