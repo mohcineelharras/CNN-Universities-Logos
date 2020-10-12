@@ -1,5 +1,4 @@
 # CNN-Universities-Logos
-Recognize universities logos
+Recognize universities logos using object detection algorithms
 
-#I am a newbie, I am here to hear your advice.
-#MEH
+![alt text](https://github.com/mohcineelharras/CNN-Universities-Logos/blob/master/data/cnn_universities.jpg)
